@@ -38,3 +38,9 @@ def plot(X, Y=None, xlabel=None, ylabel=None, legend=[], xlim=None,
     for x, y, fmt in zip(X, Y, fmts):
         axes.plot(x, y, fmt) if len(x) else axes.plot(y, fmt)
     set_axes(axes, xlabel, ylabel, xlim, ylim, xscale, yscale, legend)
+    
+def add_to_class(Class):
+    '''Register functions as methods in created class.'''
+    def wrapper(obj):
+        setattr(Class, obj.__name__, obj)
+    return wrapper
