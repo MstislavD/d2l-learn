@@ -1,6 +1,7 @@
 import inspect
 import collections
 import torch
+import random
 
 from IPython import display
 from torch import nn
@@ -156,6 +157,11 @@ class DataModule(HyperParameters):
     def __init__(self, root='../data', num_workers=4):
         self.save_hyperparameters()
         
+    def get_tensorloader(self, tensors, train, indices=slice(0, None)):
+        tensors = tuple(a[indices] for a in tensors)
+        dataset = torch.utils.data.TensorDataset(*tensors)
+        return torch.utils.data.DataLoader(dataset, self.batch_size, shuffle=train)
+        
     def get_dataloader(self, train):
         raise NotImplementedError
     
@@ -204,4 +210,19 @@ class SyntheticRegressionData(DataModule):
         self.X = torch.randn(n, len(w))
         noise = torch.randn(n, 1)
         self.y = torch.matmul(self.X, w.reshape((-1, 1))) + b + noise
+        
+    def get_dataloader(self, train):
+        i = slice(0, self.num_train) if train else slice(self.num_train, None)
+        return self.get_tensorloader((self.X, self.y), train, i)
     
+    def get_dataloader_didactic(self, train):
+        """Slower method for didactic purposes."""
+        if train:
+            indices = list(range(0, self.num_train))
+            # The examples are read in random order
+            random.shuffle(indices)
+        else:
+            indices = list(range(self.num_train, self.num_train+self.num_val))
+        for i in range(0, len(indices), self.batch_size):
+            batch_indices = torch.tensor(indices[i: i+self.batch_size])
+            yield self.X[batch_indices], self.y[batch_indices]
