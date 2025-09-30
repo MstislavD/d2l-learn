@@ -208,7 +208,7 @@ class SyntheticRegressionData(DataModule):
         self.save_hyperparameters()
         n = num_train + num_val
         self.X = torch.randn(n, len(w))
-        noise = torch.randn(n, 1)
+        noise = torch.randn(n, 1) * noise
         self.y = torch.matmul(self.X, w.reshape((-1, 1))) + b + noise
         
     def get_dataloader(self, train):
