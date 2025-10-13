@@ -53,7 +53,7 @@ def add_to_class(Class):
     return wrapper
 
 def cpu():
-    raise NotImplementedError
+    return torch.device('cpu')
 
 class HyperParameters:
     """The base class of hyperparameters."""
@@ -144,6 +144,7 @@ class Module(nn.Module, HyperParameters):
     def training_step(self, batch):
         l = self.loss(self(*batch[:-1]), batch[-1])
         self.plot('loss', l, train=True)
+        return l
         
     def validation_step(self, batch):
         l = self.loss(self(*batch[:-1]), batch[-1])
@@ -188,6 +189,9 @@ class Trainer(HyperParameters):
         model.board.xlim = [0, self.max_epochs]
         self.model = model
         
+    def prepare_batch(self, batch):
+        return batch
+        
     def fit(self, model, data):
         self.prepare_data(data)
         self.prepare_model(model)
@@ -199,7 +203,23 @@ class Trainer(HyperParameters):
             self.fit_epoch()
     
     def fit_epoch(self):
-        raise NotImplementedError
+        self.model.train()
+        for batch in self.train_dataloader:
+            loss = self.model.training_step(self.prepare_batch(batch))
+            self.optim.zero_grad()
+            with torch.no_grad():
+                loss.backward()
+                if self.gradient_clip_val > 0:
+                    self.clip_gradients(self.gradient_clip_val, self.model)
+                self.optim.step()
+            self.train_batch_idx += 1
+        if self.val_dataloader is None:
+            return
+        self.model.eval()
+        for batch in self.val_dataloader:
+            with torch.no_grad():
+                self.model.validation_step(self.prepare_batch(batch))
+            self.val_batch_idx += 1
     
 class SyntheticRegressionData(DataModule):
     """Synthetic data for linear regression"""
@@ -226,3 +246,36 @@ class SyntheticRegressionData(DataModule):
         for i in range(0, len(indices), self.batch_size):
             batch_indices = torch.tensor(indices[i: i+self.batch_size])
             yield self.X[batch_indices], self.y[batch_indices]
+            
+class LinearRegressionScratch(Module):
+    '''The linear regression model implemented from scratch'''
+    def __init__(self, num_inputs, lr, sigma=0.01):
+        super().__init__()
+        self.save_hyperparameters()
+        self.w = torch.normal(0, sigma, (num_inputs, 1), requires_grad=True)
+        self.b = torch.zeros(1, requires_grad=True)
+        
+    def forward(self, X):
+        return torch.matmul(X, self.w) + self.b
+    
+    def loss(self, y_hat, y):
+        l = (y_hat - y) ** 2 / 2
+        return l.mean()
+    
+    def configure_optimizers(self):
+        return SGD([self.w, self.b], self.lr)
+    
+class SGD(HyperParameters):
+    '''Minibatch stochastic gradient descent.'''
+    def __init__(self, params, lr):
+        self.save_hyperparameters()
+    
+    def step(self):
+        for param in self.params:
+            param -= self.lr * param.grad
+    
+    def zero_grad(self):
+        for param in self.params:
+            if param.grad is not None:
+                param.grad.zero_()
+        
