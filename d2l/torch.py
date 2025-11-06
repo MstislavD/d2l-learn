@@ -248,7 +248,7 @@ class SyntheticRegressionData(DataModule):
             yield self.X[batch_indices], self.y[batch_indices]
             
 class LinearRegressionScratch(Module):
-    '''The linear regression model implemented from scratch'''
+    '''The linear regression model implemented from scratch.'''
     def __init__(self, num_inputs, lr, sigma=0.01):
         super().__init__()
         self.save_hyperparameters()
@@ -265,6 +265,28 @@ class LinearRegressionScratch(Module):
     def configure_optimizers(self):
         return SGD([self.w, self.b], self.lr)
     
+class LinearRegression(Module):
+    '''The linear regression model implemented with high-level APIs.'''
+    def __init__(self, lr):
+        super().__init__()
+        self.save_hyperparameters()
+        self.net = nn.LazyLinear(1) # the fully connected layer with automatic assignment of inputs' shape
+        self.net.weight.data.normal_(0, 0.01)
+        self.net.bias.data.fill_(0)
+        
+    def forward(self, X):
+        return self.net(X) # invoke the buil-in __call__ method
+    
+    def loss(self, y_hat, y):
+        fn = nn.MSELoss()
+        return fn(y_hat, y)
+    
+    def configure_optimizers(self):
+        return torch.optim.SGD(self.parameters(), self.lr)
+    
+    def get_w_b(self):
+        return (self.net.weight.data, self.net.bias.data)
+      
 class SGD(HyperParameters):
     '''Minibatch stochastic gradient descent.'''
     def __init__(self, params, lr):
