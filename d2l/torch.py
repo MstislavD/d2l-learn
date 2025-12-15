@@ -1,12 +1,14 @@
 import inspect
 import collections
 import torch
+import torchvision
 import random
 
 from IPython import display
 from torch import nn
 from matplotlib import pyplot as plt
 from matplotlib_inline import backend_inline
+from torchvision import transforms
 
 def use_svg_display():
     backend_inline.set_matplotlib_formats('svg')
@@ -300,4 +302,18 @@ class SGD(HyperParameters):
         for param in self.params:
             if param.grad is not None:
                 param.grad.zero_()
+                
+class FashionMNIST(DataModule):
+    """The Fashion-MNIST dataset."""
+    def __init__(self, batch_size=64, resize=(28, 28)):
+        super().__init__()
+        self.save_hyperparameters()
+        trans = transforms.Compose([transforms.Resize(resize), transforms.ToTensor()])
+        self.train = torchvision.datasets.FashionMNIST(root=self.root, train=True, transform=trans, download=True)
+        self.val = torchvision.datasets.FashionMNIST(root=self.root, train=False, transform=trans, download=True)
+    
+    def text_labels(self, indices):
+        """Return text labels."""
+        labels = ['t-shirt', 'trouser', 'pullover', 'dress', 'coat', 'sandal', 'shirt', 'sneaker', 'bag', 'ankle boot']
+        return [labels[int(i)] for i in indices]
         
