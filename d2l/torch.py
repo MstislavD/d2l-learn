@@ -170,7 +170,7 @@ class Module(nn.Module, HyperParameters):
         self.plot('loss', l, train=False)
         
     def configure_optimizers(self):
-        torch.optim.SGD(self.parameters(), lr=self.lr)
+        return torch.optim.SGD(self.parameters(), lr=self.lr)
     
 class DataModule(HyperParameters):
     """The base class of data."""
