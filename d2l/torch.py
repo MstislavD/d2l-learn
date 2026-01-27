@@ -9,6 +9,7 @@ from torch import nn
 from matplotlib import pyplot as plt
 from matplotlib_inline import backend_inline
 from torchvision import transforms
+from torch.nn import functional as F
 
 def use_svg_display():
     backend_inline.set_matplotlib_formats('svg')
@@ -357,3 +358,18 @@ class Classifier(Module):
         preds = Y_hat.argmax(axis=1).type(Y.dtype)
         compare = (preds == Y.reshape(-1)).type(torch.float32)
         return compare.mean() if averaged else compare
+    
+    def loss(self, Y_hat, Y, averaged=True):
+        Y_hat = Y_hat.reshape((-1, Y_hat.shape[-1]))
+        Y = Y.reshape((-1,))
+        return F.cross_entropy(Y_hat, Y, reduction='mean' if averaged else 'none')
+    
+class SoftmaxRegression(Classifier):
+    """The softmax regression model."""
+    def __init__(self, num_outputs, lr):
+        super().__init__()
+        self.save_hyperparameters()
+        self.net = nn.Sequential(nn.Flatten(), nn.LazyLinear(num_outputs))
+        
+    def forward(self, X):
+        return self.net(X)
